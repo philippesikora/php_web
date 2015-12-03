@@ -3,27 +3,46 @@
 # Retrieve arguments
 domain=$(sudo yunohost app setting multi_webapp domain)
 path=$(sudo yunohost app setting multi_webapp path)
-user=$(sudo yunohost app setting multi_webapp ftp_user)
+admin=$(sudo yunohost app setting multi_webapp ftp_user)
 is_public=$(sudo yunohost app setting multi_webapp is_public)
+app=$(sudo yunohost app setting multi_webapp app)
 
-name=$(echo $2 | cut -d '/' -f 2)
 parent_dir=/var/www/webapp_$user
 final_path=$parent_dir$path
-
 netftp_path=/ftp_webapp_$user
 
+
 # Modify Nginx configuration file and copy it to Nginx conf directory
-sed -i "s@PATHTOCHANGE@$path@g" ../conf/nginx.conf
-sed -i "s@ALIASTOCHANGE@$final_path/@g" ../conf/nginx.conf
-sudo cp ../conf/nginx.conf /etc/nginx/conf.d/$domain.d/$name.conf
+sed -i "s@__PATHTOCHANGE__@$path@g" ../conf/nginx.conf
+sed -i "s@__FINALPATH__@$final_path/@g" ../conf/nginx.conf
+sed -i "s@__NAMETOCHANGE__@$app@g" ../conf/nginx.conf
+sudo cp ../conf/nginx.conf /etc/nginx/conf.d/$domain.d/$app.conf
+
+# Modifie les variables dans le fichier de configuration nginx
+sudo sed -i "s@__PATHTOCHANGE__@$path@g" /etc/nginx/conf.d/$domain.d/$app.conf
+sudo sed -i "s@__FINALPATH__@$final_path@g" /etc/nginx/conf.d/$domain.d/$app.conf
+sudo sed -i "s@__NAMETOCHANGE__@$app@g" /etc/nginx/conf.d/$domain.d/$app.conf
+sudo sed -i "s@__PORT__@$port@g" /etc/nginx/conf.d/$domain.d/$app.conf
+
+# Créer le fichier de configuration du pool php-fpm et le configure.
+sed -i "s@__NAMETOCHANGE__@$app@g" ../conf/php-fpm.conf
+sed -i "s@__FINALPATH__@$final_path@g" ../conf/php-fpm.conf
+finalphpconf=/etc/php5/fpm/pool.d/$app.conf
+sudo cp ../conf/php-fpm.conf $finalphpconf
+sudo chown root: $finalphpconf
+finalphpini=/etc/php5/fpm/conf.d/20-$app.ini
+sudo cp ../conf/php-fpm.ini $finalphpini
+sudo chown root: $finalphpini
+sudo service php5-fpm reload
 
 # Make app public if necessary
-sudo yunohost app setting multi_webapp is_public -v "$is_public"
 if [ "$is_public" = "Yes" ];
 then
     sudo yunohost app setting multi_webapp skipped_uris -v "/"
 fi
 
-# Reload Nginx and regenerate SSOwat conf
+# Recharge la configuration Nginx et php5-fpm
 sudo service nginx reload
+sudo service php5-fpm reload
+# Régénère la configuration de SSOwat
 sudo yunohost app ssowatconf

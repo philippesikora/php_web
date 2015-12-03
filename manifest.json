@@ -5,6 +5,7 @@
         "en": "Empty App without FTP access",
         "fr": "App vide sans accès FTP"
     },
+    "licence": "free",
     "maintainer": {
         "name": "Maniack Crudelis",
         "email": "maniackc_dev@crudelis.fr"

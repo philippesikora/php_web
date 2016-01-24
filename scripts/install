@@ -100,7 +100,7 @@ sudo chown root: $finalphpconf
 finalphpini=/etc/php5/fpm/conf.d/20-$app.ini
 sudo cp ../conf/php-fpm.ini $finalphpini
 sudo chown root: $finalphpini
-sudo service php5-fpm reload
+sudo service php5-fpm restart
 
 
 # Make app public if necessary
@@ -109,8 +109,7 @@ then
     sudo yunohost app setting multi_webapp skipped_uris -v "/"
 fi
 
-# Recharge la configuration Nginx et php5-fpm
+# Recharge la configuration Nginx
 sudo service nginx reload
-sudo service php5-fpm reload
 # Régénère la configuration de SSOwat
 sudo yunohost app ssowatconf

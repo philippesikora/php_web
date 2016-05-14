@@ -1,11 +1,12 @@
 #!/bin/bash
 
 # Retrieve arguments
-domain=$(sudo yunohost app setting multi_webapp domain)
-path=$(sudo yunohost app setting multi_webapp path)
-admin=$(sudo yunohost app setting multi_webapp ftp_user)
-is_public=$(sudo yunohost app setting multi_webapp is_public)
-app=$(sudo yunohost app setting multi_webapp app)
+webapp=multi_webapp
+domain=$(sudo yunohost app setting $webapp domain)
+path=$(sudo yunohost app setting $webapp path)
+admin=$(sudo yunohost app setting $webapp ftp_user)
+is_public=$(sudo yunohost app setting $webapp is_public)
+app=$(sudo yunohost app setting $webapp app)
 
 parent_dir=/var/www/webapp_$user
 final_path=$parent_dir$path
@@ -38,7 +39,7 @@ sudo service php5-fpm reload
 # Make app public if necessary
 if [ "$is_public" = "Yes" ];
 then
-    sudo yunohost app setting multi_webapp skipped_uris -v "/"
+    sudo yunohost app setting $webapp skipped_uris -v "/"
 fi
 
 # Recharge la configuration Nginx et php5-fpm

@@ -1,11 +1,21 @@
 #!/bin/bash
 
-admin=$(sudo yunohost app setting multi_webapp ftp_user)
-path=$(sudo yunohost app setting multi_webapp path)
-domain=$(sudo yunohost app setting multi_webapp domain)
-app=$(sudo yunohost app setting multi_webapp app)
+webapp=multi_webapp
+admin=$(sudo yunohost app setting $webapp ftp_user)
+path=$(sudo yunohost app setting $webapp path)
+domain=$(sudo yunohost app setting $webapp domain)
+app=$(sudo yunohost app setting $webapp app)
+sql=$(sudo yunohost app setting $webapp sql)
 parent_dir=/var/www/webapp_$admin
 final_path=$parent_dir$path
+
+# Suppression de la base de données.
+if [ "$sql" = "Yes" ];
+then
+	# Utilise '$app' comme nom d'utilisateur et de base de données
+	db_user=$app
+	mysql -u root -p$(sudo cat /etc/yunohost/mysql) -e "DROP DATABASE $db_user ; DROP USER $db_user@localhost ;"
+fi
 
 # Suppression du dossier de la webapp
 sudo rm -rf $final_path

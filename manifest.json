@@ -39,6 +39,15 @@
                 "example": "johndoe"
             },
             {
+                "name": "sql",
+                "ask": {
+                    "en": "Create a database?",
+                    "fr": "Créer une base de données?"
+                },
+                "choices": ["Yes", "No"],
+                "default": "No"
+            },
+            {
                 "name": "is_public",
                 "ask": {
                     "en": "Is it a public website ?",

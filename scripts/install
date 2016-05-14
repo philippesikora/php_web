@@ -4,7 +4,9 @@
 domain=$1
 path=$2
 admin=$3
-is_public=$4
+sql=$4
+is_public=$5
+webapp=multi_webapp
 
 # Vérifie la validité de l'user admin
 sudo yunohost user list --json | grep -q "\"username\": \"$admin\""
@@ -29,7 +31,7 @@ else
 fi
 
 # Vérifie la disponibilité du path et du domaine.
-sudo yunohost app checkurl $domain$path -a multi_webapp
+sudo yunohost app checkurl $domain$path -a $webapp
 if [[ ! $? -eq 0 ]]; then
     exit 1
 fi
@@ -42,12 +44,13 @@ then
 fi
 
 # Enregistre les infos dans la config YunoHost
-sudo yunohost app setting multi_webapp domain -v $domain
-sudo yunohost app setting multi_webapp path -v $path
-sudo yunohost app setting multi_webapp is_public -v $is_public
-sudo yunohost app setting multi_webapp app -v $app
-sudo yunohost app setting multi_webapp ftp_user -v $admin
-sudo yunohost app setting multi_webapp final_path -v $final_path
+sudo yunohost app setting $webapp domain -v $domain
+sudo yunohost app setting $webapp path -v $path
+sudo yunohost app setting $webapp is_public -v $is_public
+sudo yunohost app setting $webapp app -v $app
+sudo yunohost app setting $webapp ftp_user -v $admin
+sudo yunohost app setting $webapp final_path -v $final_path
+sudo yunohost app setting $webapp sql -v $sql
 
 
 # Créer le dossier parent des webapp pour l'utilisateur
@@ -81,6 +84,21 @@ then	# Si oui, vérifie si net2ftp est également installé.
     fi
 fi
 
+# Création d'une base de données.
+if [ "$sql" = "Yes" ];
+then
+	# Génère un mot de passe aléatoire.
+	db_pwd=$(cat /dev/urandom | head -n20 | tr -c -d 'A-Za-z0-9' | head -c24)
+	# Utilise '$app' comme nom d'utilisateur et de base de données
+	db_user=$app
+	# Initialise la base de données
+	sudo yunohost app initdb $db_user -p $db_pwd
+	echo "DB_NAME= $db_user" | sudo tee "$final_path/db_info.txt"
+	echo "DB_USER= $db_user" | sudo tee -a "$final_path/db_info.txt"
+	echo "DB_PASSWORD= $db_pwd" | sudo tee -a "$final_path/db_info.txt"
+	echo "DB_HOST= localhost" | sudo tee -a "$final_path/db_info.txt"
+fi
+
 # Set permissions
 sudo chmod 775 -R $final_path
 sudo chown -R $admin:www-data $final_path
@@ -100,13 +118,13 @@ sudo chown root: $finalphpconf
 finalphpini=/etc/php5/fpm/conf.d/20-$app.ini
 sudo cp ../conf/php-fpm.ini $finalphpini
 sudo chown root: $finalphpini
-sudo service php5-fpm restart
+sudo service php5-fpm reload
 
 
 # Make app public if necessary
 if [ "$is_public" = "Yes" ];
 then
-    sudo yunohost app setting multi_webapp skipped_uris -v "/"
+    sudo yunohost app setting $webapp skipped_uris -v "/"
 fi
 
 # Recharge la configuration Nginx

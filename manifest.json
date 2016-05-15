@@ -1,6 +1,7 @@
 {
     "name": "Multi custom webapp",
     "id": "multi_webapp",
+    "packaging_format": 1,
     "description": {
         "en": "Empty App without FTP access",
         "fr": "App vide sans accès FTP"
@@ -11,6 +12,11 @@
         "email": "maniackc_dev@crudelis.fr"
     },
     "multi_instance": "true",
+    "services": [
+        "nginx",
+        "php5-fpm",
+        "mysql"
+    ],
     "arguments": {
         "install" : [
             {

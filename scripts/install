@@ -1,18 +1,57 @@
 #!/bin/bash
 
+ynh_version=$(sudo yunohost -v | grep "moulinette:" | cut -d' ' -f2 | cut -d'.' -f1,2)
 # Retrieve arguments
-domain=$1
-path=$2
-admin=$3
-sql=$4
-is_public=$5
-webapp=multi_webapp
+if [ $ynh_version = "2.4" ]
+then
+	domain=$YNH_APP_ARG_DOMAIN
+	path=$YNH_APP_ARG_PATH
+	admin=$YNH_APP_ARG_ADMIN
+	sql=$YNH_APP_ARG_SQL
+	is_public=$YNH_APP_ARG_IS_PUBLIC
+
+	webapp=$YNH_APP_INSTANCE_NAME
+
+	# Source app helpers
+	. /usr/share/yunohost/helpers
+else
+	domain=$1
+	path=$2
+	admin=$3
+	sql=$4
+	is_public=$5
+	webapp=multi_webapp
+fi
+
+
+# Delete files and db if exit with an error
+EXIT_PROPERLY () {
+	trap '' ERR
+	echo -e "\e[91m \e[1m"	# Shell in light red bold
+	echo -e "!!\n  $webapp install's script has encountered an error. Installation was cancelled.\n!!"
+
+	if [ $ynh_version = "2.2" ]; then
+		/bin/bash ./remove	# Appel le script remove. En 2.2, ce comportement n'est pas automatique.
+	fi
+	exit 1
+}
+TRAP_ON () {	# Activate signal capture
+	trap EXIT_PROPERLY ERR	# Capturing exit signals on error
+}
+TRAP_OFF () {	# Ignoring signal capture until TRAP_ON
+# Pour une raison que j'ignore, la fonction TRAP_ON fonctionne très bien.
+# Mais pas la fonction TRAP_OFF...
+# Utiliser directement `trap '' ERR` dans le code pour l'utiliser, à la place de la fonction.
+	trap '' ERR	# Ignoring exit signals
+}
+TRAP_ON
+
 
 # Vérifie la validité de l'user admin
 sudo yunohost user list --json | grep -q "\"username\": \"$admin\""
 if [[ ! $? -eq 0 ]]; then
     echo "Wrong admin"
-    exit 1
+    touch /force_stop
 fi
 
 # Vérifie la présence du / en début de path
@@ -33,14 +72,14 @@ fi
 # Vérifie la disponibilité du path et du domaine.
 sudo yunohost app checkurl $domain$path -a $webapp
 if [[ ! $? -eq 0 ]]; then
-    exit 1
+    touch /force_stop
 fi
 
 # Vérifie que le dossier de destination n'est pas déjà utilisé.
 if [ -e "$final_path" ]
 then
     echo "This path already contains a folder"
-    exit 1
+    touch /force_stop
 fi
 
 # Enregistre les infos dans la config YunoHost
@@ -88,11 +127,15 @@ fi
 if [ "$sql" = "Yes" ];
 then
 	# Génère un mot de passe aléatoire.
-	db_pwd=$(cat /dev/urandom | head -n20 | tr -c -d 'A-Za-z0-9' | head -c24)
+	db_pwd=$(head -n20 /dev/urandom | tr -c -d 'A-Za-z0-9' | head -c24)
 	# Utilise '$app' comme nom d'utilisateur et de base de données
 	db_user=$app
 	# Initialise la base de données
-	sudo yunohost app initdb $db_user -p $db_pwd
+	if [ $ynh_version = "2.4" ]; then
+		ynh_mysql_create_db $db_user $db_user $db_pwd
+	else
+		sudo yunohost app initdb $db_user -p $db_pwd
+	fi
 	echo "DB_NAME= $db_user" | sudo tee "$final_path/db_info.txt"
 	echo "DB_USER= $db_user" | sudo tee -a "$final_path/db_info.txt"
 	echo "DB_PASSWORD= $db_pwd" | sudo tee -a "$final_path/db_info.txt"

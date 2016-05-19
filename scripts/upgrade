@@ -1,7 +1,12 @@
 #!/bin/bash
 
 # Retrieve arguments
-webapp=multi_webapp
+ynh_version=$(sudo yunohost -v | grep "moulinette:" | cut -d' ' -f2 | cut -d'.' -f1,2)
+if [ $ynh_version = "2.4" ]; then
+	webapp=$YNH_APP_INSTANCE_NAME
+else
+	webapp=multi_webapp
+fi
 domain=$(sudo yunohost app setting $webapp domain)
 path=$(sudo yunohost app setting $webapp path)
 admin=$(sudo yunohost app setting $webapp ftp_user)

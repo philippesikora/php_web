@@ -2,9 +2,6 @@
     "name": "Multi custom webapp",
     "id": "multi_webapp",
     "packaging_format": 1,
-    "requirements": {
-        "yunohost": ">= 2.4"
-    },
     "description": {
         "en": "Empty App without FTP access",
         "fr": "App vide sans accès FTP"

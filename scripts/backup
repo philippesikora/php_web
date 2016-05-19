@@ -1,7 +1,12 @@
 #!/bin/bash
 
 # Récupère les infos de l'application.
-webapp=multi_webapp
+ynh_version=$(sudo yunohost -v | grep "moulinette:" | cut -d' ' -f2 | cut -d'.' -f1,2)
+if [ $ynh_version = "2.4" ]; then
+	webapp=$YNH_APP_INSTANCE_NAME
+else
+	webapp=multi_webapp
+fi
 final_path=$(sudo yunohost app setting $webapp final_path)
 domain=$(sudo yunohost app setting $webapp domain)
 app=$(sudo yunohost app setting $webapp app)

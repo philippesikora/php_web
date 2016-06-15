@@ -1,6 +1,9 @@
 #!/bin/bash
 
-ynh_version=$(sudo yunohost -v | grep "moulinette:" | cut -d' ' -f2 | cut -d'.' -f1,2)
+source .fonctions	# Charge les fonctions génériques habituellement utilisées dans le script
+
+# Récupère les infos de l'application.
+YNH_VERSION	# Récupère le numéro de version de Yunohost.
 if [ $ynh_version = "2.4" ]; then
 	webapp=$YNH_APP_INSTANCE_NAME
 
@@ -23,15 +26,7 @@ final_path=$parent_dir$path
 db_user=$app
 if [ -n "$db_user" ]
 then
-	if mysqlshow -u root -p$(sudo cat $MYSQL_ROOT_PWD_FILE) | grep -q "^| $db_user"; then
-		echo "Delete db"
-		if [ $ynh_version = "2.4" ]; then
-			ynh_mysql_drop_db $db_user
-			ynh_mysql_drop_user $db_user
-		else
-			mysql -u root -p$(sudo cat $MYSQL_ROOT_PWD_FILE) -e "DROP DATABASE $db_user ; DROP USER $db_user@localhost ;"
-		fi
-	fi
+	REMOVE_BDD	# Suppression de la base de donnée et de l'utilisateur associé.
 fi
 
 # Suppression du dossier de la webapp
@@ -40,12 +35,7 @@ if [ -e "$final_path" ]; then	# Delete final_path
 	sudo rm -r "$final_path"
 fi
 
-# Suppression de la config nginx de la webapp
-if [ -e "/etc/nginx/conf.d/$domain.d/$app.conf" ]; then	# Delete nginx config
-	echo "Delete nginx config"
-	sudo rm "/etc/nginx/conf.d/$domain.d/$app.conf"
-	sudo service nginx reload
-fi
+REMOVE_NGINX_CONF	# Suppression de la configuration nginx
 
 # Vérifie si le dossier parent est vide. Ce qui signifie que toutes les webapp ont été désinstallées. Ainsi que le client ftp net2ftp.
 if [ -e "$parent_dir" ]
@@ -56,16 +46,7 @@ then
 	fi
 fi
 
-# Suppression de la configuration du pool php-fpm
-if [ -e "/etc/php5/fpm/pool.d/$app.conf" ]; then	# Delete fpm config
-	echo "Delete fpm config"
-	sudo rm "/etc/php5/fpm/pool.d/$app.conf"
-fi
-if [ -e "/etc/php5/fpm/conf.d/20-$app.ini" ]; then	# Delete php config
-	echo "Delete php config"
-	sudo rm "/etc/php5/fpm/conf.d/20-$app.ini"
-fi
-sudo service php5-fpm reload
+REMOVE_FPM_CONF	# Suppression de la configuration du pool php-fpm
 
 # Régénère la configuration de SSOwat
 sudo yunohost app ssowatconf

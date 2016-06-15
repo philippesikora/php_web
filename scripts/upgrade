@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# Retrieve arguments
-ynh_version=$(sudo yunohost -v | grep "moulinette:" | cut -d' ' -f2 | cut -d'.' -f1,2)
+source .fonctions	# Charge les fonctions génériques habituellement utilisées dans le script
+
+# Récupère les infos de l'application.
+YNH_VERSION	# Récupère le numéro de version de Yunohost.
 if [ $ynh_version = "2.4" ]; then
 	webapp=$YNH_APP_INSTANCE_NAME
 else
@@ -13,6 +15,7 @@ admin=$(sudo yunohost app setting $webapp ftp_user)
 is_public=$(sudo yunohost app setting $webapp is_public)
 app=$(sudo yunohost app setting $webapp app)
 
+CHECK_PATH	# Vérifie et corrige la syntaxe du path.
 parent_dir=/var/www/webapp_$user
 final_path=$parent_dir$path
 netftp_path=/ftp_webapp_$user

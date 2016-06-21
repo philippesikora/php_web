@@ -34,7 +34,7 @@ else
 fi
 
 # Checks variables are not empty
-CHECK_VAR "$app" "app name not set"
+CHECK_VAR "$webapp" "app name not set"
 
 
 CHECK_USER "$admin"	# Vérifie la validité de l'user admin

@@ -5,28 +5,28 @@ source .fonctions	# Charge les fonctions génériques habituellement utilisées 
 # Récupère les infos de l'application.
 YNH_VERSION	# Récupère le numéro de version de Yunohost.
 if [ $ynh_version = "2.4" ]; then
-	webapp=$YNH_APP_INSTANCE_NAME
+	app=$YNH_APP_INSTANCE_NAME
 
 	# Source app helpers
 	source /usr/share/yunohost/helpers
 else
-	webapp=multi_webapp
+	app=multi_webapp
 	MYSQL_ROOT_PWD_FILE="/etc/yunohost/mysql"
 fi
-admin=$(sudo yunohost app setting $webapp ftp_user)
-path=$(sudo yunohost app setting $webapp path)
-domain=$(sudo yunohost app setting $webapp domain)
-app=$(sudo yunohost app setting $webapp app)
-sql=$(sudo yunohost app setting $webapp sql)
+admin=$(sudo yunohost app setting $app ftp_user)
+path=$(sudo yunohost app setting $app path)
+domain=$(sudo yunohost app setting $app domain)
+appname=$(sudo yunohost app setting $app appname)
+sql=$(sudo yunohost app setting $app sql)
+final_path=$(sudo yunohost app setting $app final_path)
 parent_dir=/var/www/webapp_$admin
-final_path=$parent_dir$path
 
 # Suppression de la base de données.
 # Utilise '$app' comme nom d'utilisateur et de base de donnée
 db_user=$app
 if [ -n "$db_user" ]
 then
-	REMOVE_BDD	# Suppression de la base de donnée et de l'utilisateur associé.
+	REMOVE_BDD $appname	# Suppression de la base de donnée et de l'utilisateur associé.
 fi
 
 # Suppression du dossier de la webapp
@@ -35,6 +35,7 @@ if [ -e "$final_path" ]; then	# Delete final_path
 	sudo rm -r "$final_path"
 fi
 
+app=$appname	# Utilise appname pour FPM et nginx
 REMOVE_NGINX_CONF	# Suppression de la configuration nginx
 
 # Vérifie si le dossier parent est vide. Ce qui signifie que toutes les webapp ont été désinstallées. Ainsi que le client ftp net2ftp.

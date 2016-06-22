@@ -5,27 +5,27 @@ source .fonctions	# Charge les fonctions génériques habituellement utilisées 
 # Récupère les infos de l'application.
 YNH_VERSION	# Récupère le numéro de version de Yunohost.
 if [ $ynh_version = "2.4" ]; then
-	webapp=$YNH_APP_INSTANCE_NAME
+	app=$YNH_APP_INSTANCE_NAME
 else
-	webapp=multi_webapp
+	app=multi_webapp
 fi
-final_path=$(sudo yunohost app setting $webapp final_path)
-domain=$(sudo yunohost app setting $webapp domain)
-app=$(sudo yunohost app setting $webapp app)
+final_path=$(sudo yunohost app setting $app final_path)
+domain=$(sudo yunohost app setting $app domain)
+appname=$(sudo yunohost app setting $app appname)
 
 # The parameter $1 is the uncompressed restore directory location
-backup_dir=$1/apps/$webapp
+backup_dir=$1/apps/$app
 
 # Restore sources & data
 sudo cp -a $backup_dir/sources/. $final_path
 
 # Restore Nginx and YunoHost parameters
 sudo cp -a $backup_dir/yunohost/. /etc/yunohost/apps/$webapp
-sudo cp -a $backup_dir/nginx.conf /etc/nginx/conf.d/$domain.d/$app.conf
+sudo cp -a $backup_dir/nginx.conf /etc/nginx/conf.d/$domain.d/$appname.conf
 
 # Copy dedicated php-fpm process from backup folder to the right location
-sudo cp -a $backup_dir/php-fpm.conf /etc/php5/fpm/pool.d/$app.conf
-sudo cp -a $backup_dir/php-fpm.ini /etc/php5/fpm/conf.d/20-$app.ini
+sudo cp -a $backup_dir/php-fpm.conf /etc/php5/fpm/pool.d/$appname.conf
+sudo cp -a $backup_dir/php-fpm.ini /etc/php5/fpm/conf.d/20-$appname.ini
 # And restart service
 sudo service php5-fpm reload
 

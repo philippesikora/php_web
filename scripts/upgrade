@@ -5,53 +5,44 @@ source .fonctions	# Charge les fonctions génériques habituellement utilisées 
 # Récupère les infos de l'application.
 YNH_VERSION	# Récupère le numéro de version de Yunohost.
 if [ $ynh_version = "2.4" ]; then
-	webapp=$YNH_APP_INSTANCE_NAME
+	app=$YNH_APP_INSTANCE_NAME
 else
-	webapp=multi_webapp
+	app=multi_webapp
 fi
-domain=$(sudo yunohost app setting $webapp domain)
-path=$(sudo yunohost app setting $webapp path)
-admin=$(sudo yunohost app setting $webapp ftp_user)
-is_public=$(sudo yunohost app setting $webapp is_public)
-app=$(sudo yunohost app setting $webapp app)
+domain=$(sudo yunohost app setting $app domain)
+path=$(sudo yunohost app setting $app path)
+admin=$(sudo yunohost app setting $app ftp_user)
+is_public=$(sudo yunohost app setting $app is_public)
+final_path=$(sudo yunohost app setting $app final_path)
+appname=$(sudo yunohost app setting $app appname)
+if test -z "$appname"
+then	# Si appname est vide, le nom de l'app est stocké sous l'ancien nom app
+	appname=$(sudo yunohost app setting $app app)	# On Récupère l'information.
+	sudo yunohost app setting $app app -d	# On supprime l'ancienne information.
+	sudo yunohost app setting $app appname -v $appname	# Pour la remplacer par la nouvelle.
+fi
 
 CHECK_PATH	# Vérifie et corrige la syntaxe du path.
 parent_dir=/var/www/webapp_$user
-final_path=$parent_dir$path
 netftp_path=/ftp_webapp_$user
 
 
 # Modify Nginx configuration file and copy it to Nginx conf directory
 sed -i "s@__PATHTOCHANGE__@$path@g" ../conf/nginx.conf
 sed -i "s@__FINALPATH__@$final_path/@g" ../conf/nginx.conf
-sed -i "s@__NAMETOCHANGE__@$app@g" ../conf/nginx.conf
-sudo cp ../conf/nginx.conf /etc/nginx/conf.d/$domain.d/$app.conf
-
-# Modifie les variables dans le fichier de configuration nginx
-sudo sed -i "s@__PATHTOCHANGE__@$path@g" /etc/nginx/conf.d/$domain.d/$app.conf
-sudo sed -i "s@__FINALPATH__@$final_path@g" /etc/nginx/conf.d/$domain.d/$app.conf
-sudo sed -i "s@__NAMETOCHANGE__@$app@g" /etc/nginx/conf.d/$domain.d/$app.conf
-sudo sed -i "s@__PORT__@$port@g" /etc/nginx/conf.d/$domain.d/$app.conf
-
-# Créer le fichier de configuration du pool php-fpm et le configure.
-sed -i "s@__NAMETOCHANGE__@$app@g" ../conf/php-fpm.conf
-sed -i "s@__FINALPATH__@$final_path@g" ../conf/php-fpm.conf
-finalphpconf=/etc/php5/fpm/pool.d/$app.conf
-sudo cp ../conf/php-fpm.conf $finalphpconf
-sudo chown root: $finalphpconf
-finalphpini=/etc/php5/fpm/conf.d/20-$app.ini
-sudo cp ../conf/php-fpm.ini $finalphpini
-sudo chown root: $finalphpini
-sudo service php5-fpm reload
+sed -i "s@__NAMETOCHANGE__@$appname@g" ../conf/nginx.conf
+sudo cp ../conf/nginx.conf /etc/nginx/conf.d/$domain.d/$appname.conf
 
 # Make app public if necessary
 if [ "$is_public" = "Yes" ];
 then
-    sudo yunohost app setting $webapp skipped_uris -v "/"
+    sudo yunohost app setting $app skipped_uris -v "/"
 fi
 
-# Recharge la configuration Nginx et php5-fpm
+app=$appname	# Utilise appname pour FPM
+POOL_FPM	# Créer le fichier de configuration du pool php-fpm et le configure.
+
+# Recharge la configuration Nginx
 sudo service nginx reload
-sudo service php5-fpm reload
 # Régénère la configuration de SSOwat
 sudo yunohost app ssowatconf

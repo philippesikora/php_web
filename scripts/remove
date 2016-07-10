@@ -26,7 +26,7 @@ parent_dir=/var/www/webapp_$admin
 db_user=$app
 if [ -n "$db_user" ]
 then
-	REMOVE_BDD $appname	# Suppression de la base de donnée et de l'utilisateur associé.
+	REMOVE_BDD $db_user	# Suppression de la base de donnée et de l'utilisateur associé.
 fi
 
 # Suppression du dossier de la webapp

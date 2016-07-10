@@ -79,13 +79,6 @@ else
     echo "Création du dossier $parent_dir ignorée, le dossier existe déjà."
 fi
 
-# Change admin ID in configurations
-netftp_path=/ftp_webapp_$admin
-sed -i "s@__FTPUSER__@$admin@g" ../sources/index_ftp.html
-sed -i "s@__HOST__@$domain@g" ../sources/index_ftp.html
-sed -i "s@__NET2FTP__@$netftp_path@g" ../sources/index_ftp.html
-sed -i "s@__PORT__@$(cat /etc/pure-ftpd/conf/Bind)@g" ../sources/index_ftp.html
-
 # Copy files to the right place
 sudo mkdir -p $final_path
 sudo cp ../sources/index.html $final_path/
@@ -94,6 +87,11 @@ if test -f /usr/sbin/pure-ftpd-ldap
 then	# Si oui, vérifie si net2ftp est également installé.
     if test -d $parent_dir/netftp
     then
+		# Change admin ID in configurations
+		netftp_path=/ftp_webapp_$admin
+		sed -i "s@__FTPUSER__@$admin@g" ../sources/index_ftp.html
+		sed -i "s@__HOST__@$domain@g" ../sources/index_ftp.html
+		sed -i "s@__NET2FTP__@$netftp_path@g" ../sources/index_ftp.html
 		sed -i "s@__PORT__@$(cat /etc/pure-ftpd/conf/Bind)@g" ../sources/index_ftp.html
 		sudo cp ../sources/index_ftp.html $final_path/index.html	# Remplace l'index.html par celui intégrant les informations ftp
     fi

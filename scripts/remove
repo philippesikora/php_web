@@ -29,11 +29,7 @@ then
 	REMOVE_BDD $db_user	# Suppression de la base de donnée et de l'utilisateur associé.
 fi
 
-# Suppression du dossier de la webapp
-if [ -e "$final_path" ]; then	# Delete final_path
-	echo "Delete app dir"
-	sudo rm -r "$final_path"
-fi
+SECURE_REMOVE '$final_path'	# Suppression du dossier de la webapp
 
 app=$appname	# Utilise appname pour FPM et nginx
 REMOVE_NGINX_CONF	# Suppression de la configuration nginx

@@ -10,6 +10,6 @@ Le support FTP est dissocié dans l'app ftp_support_webapp_ynh
 https://github.com/YunoHost-Apps/ftp_support_webapp_ynh
 
 **Mise à jour du package:**  
-sudo yunohost app upgrade -u https://github.com/YunoHost-Apps/multi_webapp_ynh
+sudo yunohost app upgrade --verbose multi_webapp -u https://github.com/YunoHost-Apps/multi_webapp_ynh
 
 **Multi-utilisateur:** En fonction de l'application installée dans le conteneur.

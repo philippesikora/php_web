@@ -5,17 +5,18 @@ source .fonctions	# Charge les fonctions génériques habituellement utilisées 
 # Récupère les infos de l'application.
 app=$YNH_APP_INSTANCE_NAME
 
-domain=$(sudo yunohost app setting $app domain)
-# path=$(sudo yunohost app setting $app path)
-admin=$(sudo yunohost app setting $app ftp_user)
-is_public=$(sudo yunohost app setting $app is_public)
-# final_path=$(sudo yunohost app setting $app final_path)
-appname=$(sudo yunohost app setting $app appname)
+# Source app helpers
+source /usr/share/yunohost/helpers
+
+domain=$(ynh_app_setting_get $app domain)
+admin=$(ynh_app_setting_get $app ftp_user)
+is_public=$(ynh_app_setting_get $app is_public)
+appname=$(ynh_app_setting_get $app appname)
 if test -z "$appname"
 then	# Si appname est vide, le nom de l'app est stocké sous l'ancien nom app
-	appname=$(sudo yunohost app setting $app app)	# On Récupère l'information.
-	sudo yunohost app setting $app app -d	# On supprime l'ancienne information.
-	sudo yunohost app setting $app appname -v $app	# Pour la remplacer par la nouvelle.
+	appname=$(ynh_app_setting_get $app app)	# On Récupère l'information.
+	ynh_app_setting_delete $app app	# On supprime l'ancienne information.
+	ynh_app_setting_set $app appname $app	# Pour la remplacer par la nouvelle.
 fi
 
 # CHECK_PATH	# Vérifie et corrige la syntaxe du path.
@@ -32,7 +33,7 @@ fi
 # Make app public if necessary
 if [ "$is_public" = "Yes" ];
 then
-    sudo yunohost app setting $app skipped_uris -v "/"
+    ynh_app_setting_set $app skipped_uris "/"
 fi
 
 # app=$appname	# Utilise appname pour FPM

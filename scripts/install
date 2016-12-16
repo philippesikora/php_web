@@ -88,7 +88,7 @@ fi
 # Création d'une base de données.
 if [ "$sql" = "Yes" ];
 then
-	GENERATE_DB $appname	# Créer une base de données et un utilisateur dédié au nom de l'app.
+	GENERATE_DB "$appname"	# Créer une base de données et un utilisateur dédié au nom de l'app.
 	echo "DB_NAME= $db_user" | sudo tee "$final_path/db_info.txt"
 	echo "DB_USER= $db_user" | sudo tee -a "$final_path/db_info.txt"
 	echo "DB_PASSWORD= $db_pwd" | sudo tee -a "$final_path/db_info.txt"

@@ -1,70 +1,107 @@
 #!/bin/bash
 
-source .fonctions	# Charge les fonctions génériques habituellement utilisées dans le script
+#=================================================
+# GENERIC STARTING
+#=================================================
+# IMPORT GENERIC HELPERS
+#=================================================
 
-CLEAN_SETUP () {
-# Nettoyage des résidus d'installation non pris en charge par le script remove.
-# Pas de nettoyage supplémentaire nécessaire ici...
-	echo ""
-}
-TRAP_ON	# Active trap pour arrêter le script si une erreur est détectée.
+source .fonctions
+source /usr/share/yunohost/helpers
 
-# Retrieve arguments
+#=================================================
+# MANAGE FAILURE OF THE SCRIPT
+#=================================================
+
+ynh_abort_if_errors	# Active trap pour arrêter le script si une erreur est détectée.
+
+#=================================================
+# RETRIEVE ARGUMENTS FROM THE MANIFEST
+#=================================================
+
 domain=$YNH_APP_ARG_DOMAIN
-path=$YNH_APP_ARG_PATH
+path_url=$YNH_APP_ARG_PATH
 admin=$YNH_APP_ARG_ADMIN
 sql=$YNH_APP_ARG_SQL
 is_public=$YNH_APP_ARG_IS_PUBLIC
 
 app=$YNH_APP_INSTANCE_NAME
 
-# Source app helpers
-source /usr/share/yunohost/helpers
-
-# Checks variables are not empty
-CHECK_VAR "$app" "app name not set"
+#=================================================
+# CHECK IF THE APP CAN BE INSTALLED WITH THIS ARGS
+#=================================================
 
 CHECK_USER "$admin"	# Vérifie la validité de l'user admin
-
-CHECK_PATH	# Vérifie et corrige la syntaxe du path.
+path_url=$(ynh_normalize_url_path $path_url)	# Vérifie et corrige la syntaxe du path.
 CHECK_DOMAINPATH	# Vérifie la disponibilité du path et du domaine.
 
 parent_dir=/var/www/webapp_$admin
-if [ $path = "/" ]
+if [ $path_url = "/" ]
 then
-    final_path=$parent_dir
-    appname="root_webapp"
+	final_path=$parent_dir
+	appname="root_webapp"
 else
-    final_path=$parent_dir$path
-    appname=webapp_$(echo $path | cut -d '/' -f 2)
+	final_path=$parent_dir$path_url
+	appname=webapp_$(echo $path_url | cut -d '/' -f 2)
 fi
 # Pour cette application, app correspond au label, comme d'habitude. Mais pas au nom de l'application. appname contient le nom de l'application, dérivé du path.
 # Vérifie que le dossier de destination n'est pas déjà utilisé.
 if [ -e "$final_path" ]
 then
-    echo "This path already contains a folder"
-    false
+	echo "This path already contains a folder"
+	false
 fi
 
-# Enregistre les infos dans la config YunoHost
+#=================================================
+# STORE SETTINGS FROM MANIFEST
+#=================================================
+
 ynh_app_setting_set $app domain $domain
-ynh_app_setting_set $app path $path
+ynh_app_setting_set $app path $path_url
 ynh_app_setting_set $app is_public $is_public
 ynh_app_setting_set $app appname $appname
 ynh_app_setting_set $app ftp_user $admin
 ynh_app_setting_set $app final_path $final_path
+ynh_app_setting_set $app parent_dir $parent_dir
 ynh_app_setting_set $app sql $sql
 
+#=================================================
+# STANDARD MODIFICATIONS
+#=================================================
+# NGINX CONFIGURATION
+#=================================================
+
+# Copie le fichier de config nginx
+sudo cp ../conf/nginx.conf /etc/nginx/conf.d/$domain.d/$appname.conf
+# Modifie les variables dans le fichier de configuration nginx
+sudo sed -i "s@__PATHTOCHANGE__@$path_url@g" /etc/nginx/conf.d/$domain.d/$appname.conf
+sudo sed -i "s@__FINALPATH__@$final_path@g" /etc/nginx/conf.d/$domain.d/$appname.conf
+sudo sed -i "s@__NAMETOCHANGE__@$appname@g" /etc/nginx/conf.d/$domain.d/$appname.conf
+
+#=================================================
+# SETUP SSOWAT
+#=================================================
+
+if [ $is_public -eq 1 ]
+then
+	ynh_app_setting_set $app skipped_uris "/"
+fi
+
+#=================================================
+# SPECIFIC SETUP
+#=================================================
+# CREATE FINAL PATH
+#=================================================
 
 # Créer le dossier parent des webapp pour l'utilisateur
 if test ! -d $parent_dir
 then	# Créer le dossier parent uniquement si il n'existe pas
-    sudo mkdir $parent_dir
-    # Set permissions
-    sudo chmod 755 -R $parent_dir
-    sudo chown -R root: $parent_dir
+	sudo mkdir $parent_dir
+	# Set permissions
+	sudo chmod 755 -R $parent_dir
+	sudo chown -R root: $parent_dir
 else
-    echo "Création du dossier $parent_dir ignorée, le dossier existe déjà."
+	echo "Création du dossier $parent_dir ignorée, le dossier existe déjà."
 fi
 
 # Copy files to the right place
@@ -73,8 +110,8 @@ sudo cp ../sources/index.html $final_path/
 # Vérifie si pure-ftpd est déjà installé
 if test -f /usr/sbin/pure-ftpd-ldap
 then	# Si oui, vérifie si net2ftp est également installé.
-    if test -d $parent_dir/netftp
-    then
+	if test -d $parent_dir/netftp
+	then
 		# Change admin ID in configurations
 		netftp_path=/ftp_webapp_$admin
 		sed -i "s@__FTPUSER__@$admin@g" ../sources/index_ftp.html
@@ -82,39 +119,48 @@ then	# Si oui, vérifie si net2ftp est également installé.
 		sed -i "s@__NET2FTP__@$netftp_path@g" ../sources/index_ftp.html
 		sed -i "s@__PORT__@$(cat /etc/pure-ftpd/conf/Bind)@g" ../sources/index_ftp.html
 		sudo cp ../sources/index_ftp.html $final_path/index.html	# Remplace l'index.html par celui intégrant les informations ftp
-    fi
+	fi
 fi
 
-# Création d'une base de données.
-if [ "$sql" = "Yes" ];
+#=================================================
+# CREATE A SQL BDD
+#=================================================
+
+if [ $sql -eq 1 ];
 then
-	GENERATE_DB "$appname"	# Créer une base de données et un utilisateur dédié au nom de l'app.
-	echo "DB_NAME= $db_user" | sudo tee "$final_path/db_info.txt"
-	echo "DB_USER= $db_user" | sudo tee -a "$final_path/db_info.txt"
+	db_name=$(ynh_make_valid_dbid $appname)
+	ynh_app_setting_set $app db_name $db_name
+	ynh_mysql_generate_db $db_name $db_name
+	echo "DB_NAME= $db_name" | sudo tee "$final_path/db_info.txt"
+	echo "DB_USER= $db_name" | sudo tee -a "$final_path/db_info.txt"
 	echo "DB_PASSWORD= $db_pwd" | sudo tee -a "$final_path/db_info.txt"
 	echo "DB_HOST= localhost" | sudo tee -a "$final_path/db_info.txt"
 fi
 
-# Set permissions
+#=================================================
+# CREATE DEDICATED USER
+#=================================================
+
+app=$appname	# Utilise appname pour FPM
+ynh_system_user_create $app	# Créer un utilisateur système dédié à l'app
+
+#=================================================
+# PHP-FPM CONFIGURATION
+#=================================================
+
+POOL_FPM	# Créer le fichier de configuration du pool php-fpm et le configure.
+
+#=================================================
+# GENERIC FINALISATION
+#=================================================
+# SECURING FILES AND DIRECTORIES
+#=================================================
+
 sudo chmod 775 -R $final_path
 sudo chown -R $admin:www-data $final_path
 
-# Modify Nginx configuration file and copy it to Nginx conf directory
-sed -i "s@__PATHTOCHANGE__@$path@g" ../conf/nginx.conf
-sed -i "s@__FINALPATH__@$final_path/@g" ../conf/nginx.conf
-sed -i "s@__NAMETOCHANGE__@$appname@g" ../conf/nginx.conf
-sudo cp ../conf/nginx.conf /etc/nginx/conf.d/$domain.d/$appname.conf
+#=================================================
+# RELOAD NGINX
+#=================================================
 
-# Make app public if necessary
-if [ "$is_public" = "Yes" ];
-then
-    ynh_app_setting_set $app skipped_uris "/"
-fi
-
-app=$appname	# Utilise appname pour FPM
-POOL_FPM	# Créer le fichier de configuration du pool php-fpm et le configure.
-
-# Recharge la configuration Nginx
-sudo service nginx reload
-# Régénère la configuration de SSOwat
-sudo yunohost app ssowatconf
+sudo systemctl reload nginx

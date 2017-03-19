@@ -1,34 +1,102 @@
 #!/bin/bash
 
-# Récupère les infos de l'application.
-app=$YNH_APP_INSTANCE_NAME
+#=================================================
+# GENERIC STARTING
+#=================================================
+# MANAGE FAILURE OF THE SCRIPT
+#=================================================
 
-# Source app helpers
+# Exit on command errors and treat unset variables as an error
+set -eu
+
+#=================================================
+# IMPORT GENERIC HELPERS
+#=================================================
+
+if [ ! -e .fonctions ]; then
+	# Rapatrie le fichier de fonctions si il n'est pas dans le dossier courant
+	sudo cp ../settings/scripts/.fonctions ./.fonctions
+	sudo chmod a+rx .fonctions
+fi
+source .fonctions
 source /usr/share/yunohost/helpers
+
+#=================================================
+# LOAD SETTINGS
+#=================================================
+
+app=$YNH_APP_INSTANCE_NAME
 
 final_path=$(ynh_app_setting_get $app final_path)
 domain=$(ynh_app_setting_get $app domain)
 appname=$(ynh_app_setting_get $app appname)
+path_url=$(ynh_app_setting_get $app path)
+sql=$(ynh_app_setting_get $app sql)
+parent_dir=$(ynh_app_setting_get $app parent_dir)
 
-echo "app=$app"
-echo "appname=$appname"
+#=================================================
+# CHECK IF THE APP CAN BE RESTORED
+#=================================================
 
-# The parameter $1 is the uncompressed restore directory location
-backup_dir=$1/apps/$app
+sudo yunohost app checkurl "${domain}${path_url}" -a "$app" \
+	|| ynh_die "Path not available: ${domain}${path_url}"
+test ! -d $final_path \
+	|| ynh_die "There is already a directory: $final_path "
 
-# Restore sources & data
-sudo mkdir -p $final_path
-sudo cp -a $backup_dir/sources/. $final_path
+#=================================================
+# STANDARD RESTORE STEPS
+#=================================================
+# RESTORE OF THE NGINX CONFIGURATION
+#=================================================
 
-# Restore Nginx and YunoHost parameters
-sudo cp -a $backup_dir/yunohost/. /etc/yunohost/apps/$app
-sudo cp -a $backup_dir/nginx.conf /etc/nginx/conf.d/$domain.d/$appname.conf
+conf=/etc/nginx/conf.d/$domain.d/$appname.conf
+if [ -f $conf ]; then
+	ynh_die "There is already a nginx conf file at this path: $conf "
+fi
+sudo cp -a ./nginx.conf $conf
 
-# Copy dedicated php-fpm process from backup folder to the right location
-sudo cp -a $backup_dir/php-fpm.conf /etc/php5/fpm/pool.d/$appname.conf
-sudo cp -a $backup_dir/php-fpm.ini /etc/php5/fpm/conf.d/20-$appname.ini
-# And restart service
-sudo service php5-fpm reload
+#=================================================
+# RESTORE OF THE MAIN DIR OF THE APP
+#=================================================
 
-# Restart webserver
-sudo service nginx reload
+if test ! -d $parent_dir
+then	# Créer le dossier parent uniquement si il n'existe pas
+	sudo mkdir $parent_dir
+	# Set permissions
+	sudo chmod 755 -R $parent_dir
+fi
+sudo cp -a ./sources/. $final_path
+
+#=================================================
+# RESTORE OF THE SQL BDD
+#=================================================
+
+if [ $sql -eq 1 ];
+then
+	db_name=$(ynh_app_setting_get $app db_name)
+	db_pwd=$(ynh_app_setting_get $app mysqlpwd)
+	ynh_mysql_create_db $db_name $db_name $db_pwd
+	ynh_mysql_connect_as $db_name $db_pwd $db_name < ./db.sql
+fi
+
+#=================================================
+# RECREATE OF THE DEDICATED USER
+#=================================================
+
+ynh_system_user_create $app	# Recreate the dedicated user, if not exist
+
+#=================================================
+# RESTORE OF THE PHP-FPM CONFIGURATION
+#=================================================
+
+sudo cp -a ./php-fpm.conf /etc/php5/fpm/pool.d/$appname.conf
+sudo cp -a ./php-fpm.ini /etc/php5/fpm/conf.d/20-$appname.ini
+
+#=================================================
+# GENERIC FINALISATION
+#=================================================
+# RELOAD NGINX AND PHP-FPM
+#=================================================
+
+sudo systemctl reload php5-fpm
+sudo systemctl reload nginx

@@ -1,12 +1,19 @@
 #!/bin/bash
 
-source .fonctions	# Charge les fonctions génériques habituellement utilisées dans le script
+#=================================================
+# GENERIC STARTING
+#=================================================
+# IMPORT GENERIC HELPERS
+#=================================================
 
-# Récupère les infos de l'application.
-app=$YNH_APP_INSTANCE_NAME
-
-# Source app helpers
+source .fonctions
 source /usr/share/yunohost/helpers
+
+#=================================================
+# LOAD SETTINGS
+#=================================================
+
+app=$YNH_APP_INSTANCE_NAME
 
 admin=$(ynh_app_setting_get $app ftp_user)
 path=$(ynh_app_setting_get $app path)
@@ -14,20 +21,44 @@ domain=$(ynh_app_setting_get $app domain)
 appname=$(ynh_app_setting_get $app appname)
 sql=$(ynh_app_setting_get $app sql)
 final_path=$(ynh_app_setting_get $app final_path)
-parent_dir=/var/www/webapp_$admin
+parent_dir=$(ynh_app_setting_get $app parent_dir)
 
-# Suppression de la base de données.
-# Utilise '$app' comme nom d'utilisateur et de base de donnée
-db_user=$app
-if [ -n "$db_user" ]
+#=================================================
+# STANDARD REMOVE
+#=================================================
+# REMOVE THE SQL BDD
+#=================================================
+
+if [ "$sql" -eq "1" ];
 then
-	REMOVE_BDD $db_user	# Suppression de la base de donnée et de l'utilisateur associé.
+	db_name=$(ynh_app_setting_get $app db_name)
+	ynh_mysql_remove_db $db_name $db_name	# Suppression de la base de donnée et de l'utilisateur associé.
 fi
+
+#=================================================
+# REMOVE THE MAIN DIR OF THE APP
+#=================================================
 
 SECURE_REMOVE '$final_path'	# Suppression du dossier de la webapp
 
+#=================================================
+# REMOVE THE NGINX CONFIGURATION
+#=================================================
+
 app=$appname	# Utilise appname pour FPM et nginx
 REMOVE_NGINX_CONF	# Suppression de la configuration nginx
+
+#=================================================
+# REMOVE THE PHP-FPM CONFIGURATION
+#=================================================
+
+REMOVE_FPM_CONF	# Suppression de la configuration du pool php-fpm
+
+#=================================================
+# SPECIFIC REMOVE
+#=================================================
+# REMOVE THE PARENT DIR
+#=================================================
 
 # Vérifie si le dossier parent est vide. Ce qui signifie que toutes les webapp ont été désinstallées. Ainsi que le client ftp net2ftp.
 if [ -e "$parent_dir" ]
@@ -38,9 +69,10 @@ then
 	fi
 fi
 
-REMOVE_FPM_CONF	# Suppression de la configuration du pool php-fpm
+#=================================================
+# GENERIC FINALISATION
+#=================================================
+# REMOVE DEDICATED USER
+#=================================================
 
-# Régénère la configuration de SSOwat
-sudo yunohost app ssowatconf
-
-echo -e "\e[0m"	# Restore normal color
+ynh_system_user_delete $app

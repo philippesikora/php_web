@@ -1,17 +1,28 @@
 #!/bin/bash
 
-source .fonctions	# Charge les fonctions génériques habituellement utilisées dans le script
+#=================================================
+# GENERIC STARTING
+#=================================================
+# IMPORT GENERIC HELPERS
+#=================================================
 
-# Récupère les infos de l'application.
-app=$YNH_APP_INSTANCE_NAME
-
-# Source app helpers
+source .fonctions
 source /usr/share/yunohost/helpers
 
-domain=$(ynh_app_setting_get $app domain)
-admin=$(ynh_app_setting_get $app ftp_user)
+#=================================================
+# LOAD SETTINGS
+#=================================================
+
+app=$YNH_APP_INSTANCE_NAME
+
 is_public=$(ynh_app_setting_get $app is_public)
 appname=$(ynh_app_setting_get $app appname)
+db_name=$(ynh_app_setting_get $app db_name)
+
+#=================================================
+# FIX OLD THINGS
+#=================================================
+
 if test -z "$appname"
 then	# Si appname est vide, le nom de l'app est stocké sous l'ancien nom app
 	appname=$(ynh_app_setting_get $app app)	# On Récupère l'information.
@@ -19,27 +30,42 @@ then	# Si appname est vide, le nom de l'app est stocké sous l'ancien nom app
 	ynh_app_setting_set $app appname $app	# Pour la remplacer par la nouvelle.
 fi
 
-# CHECK_PATH	# Vérifie et corrige la syntaxe du path.
-# parent_dir=/var/www/webapp_$user
-# netftp_path=/ftp_webapp_$user
-
-
-# Modify Nginx configuration file and copy it to Nginx conf directory
-# sed -i "s@__PATHTOCHANGE__@$path@g" ../conf/nginx.conf
-# sed -i "s@__FINALPATH__@$final_path/@g" ../conf/nginx.conf
-# sed -i "s@__NAMETOCHANGE__@$appname@g" ../conf/nginx.conf
-# sudo cp ../conf/nginx.conf /etc/nginx/conf.d/$domain.d/$appname.conf
-
-# Make app public if necessary
-if [ "$is_public" = "Yes" ];
-then
-    ynh_app_setting_set $app skipped_uris "/"
+if [ "$is_public" = "Yes" ]; then
+	ynh_app_setting_set $app is_public 1	# Fixe is_public en booléen
+	is_public=1
+elif [ "$is_public" = "No" ]; then
+	ynh_app_setting_set $app is_public 0
+	is_public=0
 fi
 
-# app=$appname	# Utilise appname pour FPM
-# POOL_FPM	# Créer le fichier de configuration du pool php-fpm et le configure.
+sql=$(ynh_app_setting_get $app sql)
+if [ "$sql" = "Yes" ]; then
+	ynh_app_setting_set $app sql 1	# Fixe sql en booléen
+elif [ "$sql" = "No" ]; then
+	ynh_app_setting_set $app sql 0
+fi
 
-# Recharge la configuration Nginx
-sudo service nginx reload
-# Régénère la configuration de SSOwat
-sudo yunohost app ssowatconf
+if [ -z $db_name ]; then	# Si db_name n'est pas renseigné dans app setting
+	db_name=$(ynh_make_valid_dbid $app)
+	ynh_app_setting_set $app db_name $db_name
+fi
+
+#=================================================
+# BACKUP BEFORE UPGRADE THEN ACTIVE TRAP
+#=================================================
+
+BACKUP_BEFORE_UPGRADE	# Backup the current version of the app
+ynh_clean_setup () {
+	BACKUP_FAIL_UPGRADE	# restore it if the upgrade fails
+}
+ynh_abort_if_errors	# Active trap pour arrêter le script si une erreur est détectée.
+
+#=================================================
+# SETUP SSOWAT
+#=================================================
+
+# Make app public if necessary
+if [ $is_public -eq 1 ]
+then
+	ynh_app_setting_set $app skipped_uris "/"
+fi

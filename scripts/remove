@@ -39,20 +39,20 @@ fi
 # REMOVE THE MAIN DIR OF THE APP
 #=================================================
 
-SECURE_REMOVE '$final_path'	# Suppression du dossier de la webapp
+ynh_secure_remove "$final_path"	# Suppression du dossier de la webapp
 
 #=================================================
 # REMOVE THE NGINX CONFIGURATION
 #=================================================
 
 app=$appname	# Utilise appname pour FPM et nginx
-REMOVE_NGINX_CONF	# Suppression de la configuration nginx
+ynh_remove_nginx_config	# Suppression de la configuration nginx
 
 #=================================================
 # REMOVE THE PHP-FPM CONFIGURATION
 #=================================================
 
-REMOVE_FPM_CONF	# Suppression de la configuration du pool php-fpm
+ynh_remove_fpm_config	# Suppression de la configuration du pool php-fpm
 
 #=================================================
 # SPECIFIC REMOVE
@@ -65,7 +65,7 @@ if [ -e "$parent_dir" ]
 then
 	if test -z "$(ls $parent_dir | head -n1)"
 	then
-		sudo rmdir $parent_dir
+		ynh_secure_remove $parent_dir
 	fi
 fi
 
@@ -75,4 +75,4 @@ fi
 # REMOVE DEDICATED USER
 #=================================================
 
-ynh_system_user_delete $app
+ynh_system_user_delete $appname

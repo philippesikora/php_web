@@ -39,20 +39,20 @@ sql=$(ynh_app_setting_get $app sql)
 #=================================================
 
 CHECK_SIZE "$final_path"
-ynh_backup "$final_path" "sources"
+ynh_backup_abstract "$final_path" "sources"
 
 #=================================================
 # BACKUP OF THE NGINX CONFIGURATION
 #=================================================
 
-ynh_backup "/etc/nginx/conf.d/$domain.d/$appname.conf" "nginx.conf"
+ynh_backup_abstract "/etc/nginx/conf.d/$domain.d/$appname.conf" "nginx.conf"
 
 #=================================================
 # BACKUP OF THE PHP-FPM CONFIGURATION
 #=================================================
 
-ynh_backup "/etc/php5/fpm/pool.d/$appname.conf" "php-fpm.conf"
-ynh_backup "/etc/php5/fpm/conf.d/20-$appname.ini" "php-fpm.ini"
+ynh_backup_abstract "/etc/php5/fpm/pool.d/$appname.conf" "php-fpm.conf"
+ynh_backup_abstract "/etc/php5/fpm/conf.d/20-$appname.ini" "php-fpm.ini"
 
 #=================================================
 # BACKUP OF THE SQL BDD
@@ -64,5 +64,5 @@ then
 	db_pwd=$(ynh_app_setting_get $app mysqlpwd)
 	ynh_mysql_dump_db "$db_name" > dump.sql
 	CHECK_SIZE "dump.sql"
-	ynh_backup "dump.sql" "db.sql"
+	ynh_backup_abstract "dump.sql" "db.sql"
 fi

@@ -33,6 +33,7 @@ appname=$(ynh_app_setting_get $app appname)
 path_url=$(ynh_app_setting_get $app path)
 sql=$(ynh_app_setting_get $app sql)
 parent_dir=$(ynh_app_setting_get $app parent_dir)
+admin=$(ynh_app_setting_get $app ftp_user)
 
 #=================================================
 # CHECK IF THE APP CAN BE RESTORED
@@ -49,11 +50,7 @@ test ! -d $final_path \
 # RESTORE OF THE NGINX CONFIGURATION
 #=================================================
 
-conf=/etc/nginx/conf.d/$domain.d/$appname.conf
-if [ -f $conf ]; then
-	ynh_die "There is already a nginx conf file at this path: $conf "
-fi
-sudo cp -a ./nginx.conf $conf
+ynh_restore_file nginx.conf
 
 #=================================================
 # RESTORE OF THE MAIN DIR OF THE APP
@@ -65,7 +62,7 @@ then	# Créer le dossier parent uniquement si il n'existe pas
 	# Set permissions
 	sudo chmod 755 -R $parent_dir
 fi
-sudo cp -a ./sources/. $final_path
+ynh_restore_file sources
 
 #=================================================
 # RESTORE OF THE SQL BDD
@@ -83,14 +80,20 @@ fi
 # RECREATE OF THE DEDICATED USER
 #=================================================
 
-ynh_system_user_create $app	# Recreate the dedicated user, if not exist
+ynh_system_user_create $appname	# Recreate the dedicated user, if not exist
+
+#=================================================
+# SECURING FILES AND DIRECTORIES
+#=================================================
+
+sudo chown -R $admin:$appname $final_path
 
 #=================================================
 # RESTORE OF THE PHP-FPM CONFIGURATION
 #=================================================
 
-sudo cp -a ./php-fpm.conf /etc/php5/fpm/pool.d/$appname.conf
-sudo cp -a ./php-fpm.ini /etc/php5/fpm/conf.d/20-$appname.ini
+ynh_restore_file php-fpm.conf
+ynh_restore_file php-fpm.ini
 
 #=================================================
 # GENERIC FINALISATION

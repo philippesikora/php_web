@@ -31,19 +31,18 @@ app=$YNH_APP_INSTANCE_NAME
 # CHECK IF THE APP CAN BE INSTALLED WITH THIS ARGS
 #=================================================
 
-CHECK_USER "$admin"	# Vérifie la validité de l'user admin
 path_url=$(ynh_normalize_url_path $path_url)	# Vérifie et corrige la syntaxe du path.
 CHECK_DOMAINPATH	# Vérifie la disponibilité du path et du domaine.
 
 parent_dir=/var/www/webapp_$admin
 if [ $path_url = "/" ]
 then
-	final_path=$parent_dir
-	appname="root_webapp"
+	directory=${domain//-/_}
 else
-	final_path=$parent_dir$path_url
-	appname=webapp_$(echo $path_url | cut -d '/' -f 2)
+	directory=$(echo $path_url | cut -d '/' -f 2)
 fi
+appname=webapp_$directory
+final_path=$parent_dir/$directory
 # Pour cette application, app correspond au label, comme d'habitude. Mais pas au nom de l'application. appname contient le nom de l'application, dérivé du path.
 # Vérifie que le dossier de destination n'est pas déjà utilisé.
 if [ -e "$final_path" ]
@@ -67,17 +66,6 @@ ynh_app_setting_set $app sql $sql
 
 #=================================================
 # STANDARD MODIFICATIONS
-#=================================================
-# NGINX CONFIGURATION
-#=================================================
-
-# Copie le fichier de config nginx
-sudo cp ../conf/nginx.conf /etc/nginx/conf.d/$domain.d/$appname.conf
-# Modifie les variables dans le fichier de configuration nginx
-sudo sed -i "s@__PATHTOCHANGE__@$path_url@g" /etc/nginx/conf.d/$domain.d/$appname.conf
-sudo sed -i "s@__FINALPATH__@$final_path@g" /etc/nginx/conf.d/$domain.d/$appname.conf
-sudo sed -i "s@__NAMETOCHANGE__@$appname@g" /etc/nginx/conf.d/$domain.d/$appname.conf
-
 #=================================================
 # SETUP SSOWAT
 #=================================================
@@ -114,10 +102,10 @@ then	# Si oui, vérifie si net2ftp est également installé.
 	then
 		# Change admin ID in configurations
 		netftp_path=/ftp_webapp_$admin
-		sed -i "s@__FTPUSER__@$admin@g" ../sources/index_ftp.html
-		sed -i "s@__HOST__@$domain@g" ../sources/index_ftp.html
-		sed -i "s@__NET2FTP__@$netftp_path@g" ../sources/index_ftp.html
-		sed -i "s@__PORT__@$(cat /etc/pure-ftpd/conf/Bind)@g" ../sources/index_ftp.html
+		ynh_replace_string "__FTPUSER__" "$admin" ../sources/index_ftp.html
+		ynh_replace_string "__HOST__" "$domain" ../sources/index_ftp.html
+		ynh_replace_string "__NET2FTP__" "$netftp_path" ../sources/index_ftp.html
+		ynh_replace_string "__PORT__" "$(cat /etc/pure-ftpd/conf/Bind)" ../sources/index_ftp.html
 		sudo cp ../sources/index_ftp.html $final_path/index.html	# Remplace l'index.html par celui intégrant les informations ftp
 	fi
 fi
@@ -141,14 +129,42 @@ fi
 # CREATE DEDICATED USER
 #=================================================
 
-app=$appname	# Utilise appname pour FPM
-ynh_system_user_create $app	# Créer un utilisateur système dédié à l'app
+ynh_system_user_create $appname	# Créer un utilisateur système dédié à l'app
 
 #=================================================
 # PHP-FPM CONFIGURATION
 #=================================================
 
-POOL_FPM	# Créer le fichier de configuration du pool php-fpm et le configure.
+# En raison de l'usage de $appname, il n'est pas possible d'utiliser ynh_fpm_config
+finalphpconf="/etc/php5/fpm/pool.d/$appname.conf"
+sudo cp ../conf/php-fpm.conf "$finalphpconf"
+
+ynh_replace_string "__NAMETOCHANGE__" "$appname" "$finalphpconf"
+ynh_replace_string "__FINALPATH__" "$final_path" "$finalphpconf"
+ynh_replace_string "__USER__" "$appname" "$finalphpconf"
+
+sudo chown root: "$finalphpconf"
+
+finalphpini="/etc/php5/fpm/conf.d/20-$appname.ini"
+sudo cp ../conf/php-fpm.ini "$finalphpini"
+sudo chown root: "$finalphpini"
+
+sudo systemctl reload php5-fpm
+
+#=================================================
+# NGINX CONFIGURATION
+#=================================================
+
+# En raison de l'usage de $appname, il n'est pas possible d'utiliser ynh_nginx_config
+
+finalnginxconf="/etc/nginx/conf.d/$domain.d/$appname.conf"
+sudo cp ../conf/nginx.conf "$finalnginxconf"
+
+ynh_replace_string "__PATH__" "$path_url" "$finalnginxconf"
+ynh_replace_string "__FINALPATH__" "$final_path" "$finalnginxconf"
+ynh_replace_string "__APPNAME__" "$appname" "$finalnginxconf"
+
+sudo systemctl reload nginx
 
 #=================================================
 # GENERIC FINALISATION
@@ -157,7 +173,7 @@ POOL_FPM	# Créer le fichier de configuration du pool php-fpm et le configure.
 #=================================================
 
 sudo chmod 775 -R $final_path
-sudo chown -R $admin:www-data $final_path
+sudo chown -R $admin:$appname $final_path
 
 #=================================================
 # RELOAD NGINX

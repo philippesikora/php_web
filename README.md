@@ -13,3 +13,7 @@ https://github.com/YunoHost-Apps/ftp_support_webapp_ynh
 sudo yunohost app upgrade --verbose multi_webapp -u https://github.com/YunoHost-Apps/multi_webapp_ynh
 
 **Multi-utilisateur:** En fonction de l'application installée dans le conteneur.
+
+**Voir l'état du package:**  
+*[Dernier rapport hebdomadaire](https://forum.yunohost.org/t/rapport-hebdomadaire-dintegration-continue/2297)*  
+*[Dernier test d'intégration continue](https://ci-apps.yunohost.org/jenkins/job/multi_webapp%20%28Community%29/lastBuild/consoleFull)*

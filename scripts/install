@@ -116,9 +116,9 @@ fi
 
 if [ $sql -eq 1 ];
 then
-	db_name=$(ynh_make_valid_dbid $appname)
+	db_name=$(ynh_sanitize_dbid $appname)
 	ynh_app_setting_set $app db_name $db_name
-	ynh_mysql_generate_db $db_name $db_name
+	ynh_mysql_setup_db $db_name $db_name
 	echo "DB_NAME= $db_name" | sudo tee "$final_path/db_info.txt"
 	echo "DB_USER= $db_name" | sudo tee -a "$final_path/db_info.txt"
 	echo "DB_PASSWORD= $db_pwd" | sudo tee -a "$final_path/db_info.txt"

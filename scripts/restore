@@ -50,7 +50,7 @@ test ! -d $final_path \
 # RESTORE OF THE NGINX CONFIGURATION
 #=================================================
 
-ynh_restore_file nginx.conf
+ynh_restore_file "/etc/nginx/conf.d/$domain.d/$appname.conf"
 
 #=================================================
 # RESTORE OF THE MAIN DIR OF THE APP
@@ -62,7 +62,7 @@ then	# Créer le dossier parent uniquement si il n'existe pas
 	# Set permissions
 	sudo chmod 755 -R $parent_dir
 fi
-ynh_restore_file sources
+ynh_restore_file "$final_path"
 
 #=================================================
 # RESTORE OF THE SQL BDD
@@ -92,8 +92,8 @@ sudo chown -R $admin:$appname $final_path
 # RESTORE OF THE PHP-FPM CONFIGURATION
 #=================================================
 
-ynh_restore_file php-fpm.conf
-ynh_restore_file php-fpm.ini
+ynh_restore_file "/etc/php5/fpm/pool.d/$appname.conf"
+ynh_restore_file "/etc/php5/fpm/conf.d/20-$appname.ini"
 
 #=================================================
 # GENERIC FINALISATION
